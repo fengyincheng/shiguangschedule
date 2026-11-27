@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 import org.koin.compose.koinInject
+import org.koin.core.qualifier.named
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import kotlin.time.Clock
 
 private fun currentSchoolYear(): Int {
@@ -43,34 +46,66 @@ private fun errorMessage(error: Exception): String = when(error) {
 @Composable fun CampusScreen() {
     val client=rememberCampusClient()
     val repository=remember(client){CampusRepository(client)}
+    val dataStore: DataStore<Preferences> = koinInject(qualifier = named("AppSettings"))
+    val cache = remember(dataStore) { CampusCache(dataStore) }
     val scope=rememberCoroutineScope()
     var year by rememberSaveable{mutableStateOf(currentSchoolYear())}
     var semester by rememberSaveable{mutableStateOf(currentSemester())}
     var login by remember{mutableStateOf(false)}
-    var busy by remember{mutableStateOf(false)}
+    var busy by remember{mutableStateOf(true)}
     var message by remember{mutableStateOf("广东海洋大学 · 阳江校区。登录后可持续刷新，登录过期时重新登录。")}
     var exams by remember{mutableStateOf<List<CampusExam>>(emptyList())}
     var scores by remember{mutableStateOf<List<CampusScore>>(emptyList())}
     var queried by remember{mutableStateOf(false)}
     var scoreQueried by remember{mutableStateOf(false)}
     var details by remember{mutableStateOf<CampusExam?>(null)}
+    fun showSaved(snapshot: CampusSnapshot) {
+        exams=snapshot.exams.orEmpty(); scores=snapshot.scores.orEmpty()
+        queried=snapshot.exams!=null; scoreQueried=snapshot.scores!=null
+        message=listOfNotNull(
+            snapshot.examsUpdatedAt?.let { "考试更新于 $it" },
+            snapshot.scoresUpdatedAt?.let { "成绩更新于 $it" }
+        ).joinToString("；").ifEmpty { "本学期尚无本地数据，请登录后刷新" }
+    }
+    LaunchedEffect(cache) {
+        try {
+            val term=cache.selectedTerm() ?: CampusTerm(year,semester)
+            year=term.year; semester=term.semester
+            showSaved(cache.read(term))
+        } catch(e: CancellationException){throw e} catch(e: Exception){message="读取本地数据失败：${errorMessage(e)}"} finally{busy=false}
+    }
     fun refresh() { scope.launch {
         busy=true
         try {
             val result=repository.exams(year,semester)
+            cache.saveExams(CampusTerm(year,semester),result,Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace('T',' ').take(19))
             exams=result; queried=true
             message="考试同步成功，共 ${result.size} 场；${Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).time.toString().take(8)} 更新"
         } catch(e: CancellationException){throw e} catch(e: Exception){message=errorMessage(e);if(e is CampusLoginRequired)login=true} finally{busy=false}
     } }
     Column(Modifier.fillMaxSize().padding(LocalScaffoldPadding.current).padding(horizontal=16.dp)) {
         Text("考试安排",style=MaterialTheme.typography.headlineMedium,modifier=Modifier.padding(vertical=16.dp))
-        SemesterPicker(year,semester,!busy){y,s->year=y;semester=s;exams=emptyList();scores=emptyList();queried=false;scoreQueried=false;message="学期已切换，请刷新"}
+        SemesterPicker(year,semester,!busy){y,s->
+            busy=true
+            scope.launch {
+                try {
+                    val term=CampusTerm(y,s)
+                    val saved=cache.read(term)
+                    cache.select(term)
+                    year=y;semester=s;details=null;showSaved(saved)
+                } catch(e: CancellationException){throw e} catch(e: Exception){message=errorMessage(e)} finally{busy=false}
+            }
+        }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             TextButton(onClick={login=true},enabled=!busy){Text("登录")}
             Button(onClick={refresh()},enabled=!busy){Text("刷新考试")}
             OutlinedButton(enabled=!busy,onClick={scope.launch {
                 busy=true
-                try{scores=repository.scores(year,semester);scoreQueried=true;message="成绩同步成功，共 ${scores.size} 条"}
+                try{
+                    val result=repository.scores(year,semester)
+                    cache.saveScores(CampusTerm(year,semester),result,Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace('T',' ').take(19))
+                    scores=result;scoreQueried=true;message="成绩同步成功，共 ${scores.size} 条"
+                }
                 catch(e: CancellationException){throw e} catch(e: Exception){message=errorMessage(e);if(e is CampusLoginRequired)login=true} finally{busy=false}
             }}){Text("刷新成绩")}
         }

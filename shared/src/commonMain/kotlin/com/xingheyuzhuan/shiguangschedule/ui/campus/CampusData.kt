@@ -17,8 +17,10 @@ internal fun responseObject(body: String): JsonObject {
     return runCatching { Json.parseToJsonElement(body).jsonObject }.getOrElse { error("教务系统返回格式异常，请稍后重试") }
 }
 
+@kotlinx.serialization.Serializable
 data class CampusExam(val course: String, val courseId: String, val time: String, val location: String,
     val seat: String, val campus: String, val name: String)
+@kotlinx.serialization.Serializable
 data class CampusScore(val course: String, val courseId: String, val score: String, val credit: String, val point: String)
 data class CampusPage(val items: List<JsonObject>, val pages: Int?, val records: Int?)
 internal fun parsePage(body: String): CampusPage {
