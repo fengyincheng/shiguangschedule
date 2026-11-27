@@ -16,11 +16,11 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.xingheyuzhuan.shiguangschedule"
+        applicationId = "com.xingheyuzhuan.shiguangschedule.gdou"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 36
-        versionName = "2.1.0"
+        versionCode = 37
+        versionName = "2.1.1-gdou.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -42,7 +42,7 @@ android {
         abi {
             isEnable = true
             exclude("mips", "mips64", "armeabi", "riscv64", "x86")
-            isUniversalApk = false
+            isUniversalApk = true
             include("armeabi-v7a", "arm64-v8a", "x86_64")
         }
     }

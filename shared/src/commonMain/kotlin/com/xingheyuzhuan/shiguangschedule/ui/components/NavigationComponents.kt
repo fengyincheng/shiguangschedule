@@ -122,6 +122,7 @@ fun AdaptiveNavigationScaffold(
         settingsSelectedIcon, settingsUnselectedIcon
     ) {
         listOf(
+            NavItemData("考试", Destination.Exams, courseSelectedIcon, courseUnselectedIcon),
             NavItemData(
                 label = todayLabel,
                 destination = Destination.TodaySchedule,

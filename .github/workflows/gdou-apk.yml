@@ -1,0 +1,42 @@
+name: GDOU Android APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare school resources
+        shell: bash
+        run: |
+          git clone --depth 1 --branch index-pb-release https://github.com/ShiGuangSchedule/shiguang_warehouse.git /tmp/school-index
+          mkdir -p shared/assets/offline_repo/index shared/assets/offline_repo/schools
+          cp /tmp/school-index/school_index.pb shared/assets/offline_repo/index/
+          git clone --depth 1 https://github.com/ShiGuangSchedule/shiguang_warehouse.git /tmp/school-resources
+          cp -R /tmp/school-resources/resources shared/assets/offline_repo/schools/
+          find shared/assets/offline_repo/schools -name adapters.yaml -delete
+      - name: Test and build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :shared:jvmTest :androidApp:assembleRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: gdou-release-apk
+          path: androidApp/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gdou-test-reports
+          path: shared/build/reports/tests/
+          if-no-files-found: ignore

@@ -257,6 +257,7 @@ private fun WeeklyScheduleContentLoaded(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 CenterAlignedTopAppBar(
+                    navigationIcon = { com.xingheyuzhuan.shiguangschedule.ui.campus.CampusScheduleRefreshButton() },
                     title = {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,

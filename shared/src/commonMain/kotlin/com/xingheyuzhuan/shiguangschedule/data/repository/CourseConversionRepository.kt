@@ -156,8 +156,6 @@ class CourseConversionRepository(
         val currentStyle = styleSettingsRepository.styleFlow.first()
         val colorSize = currentStyle.courseColorMaps.size
 
-        courseDao.deleteCoursesByTableId(tableId)
-
         val courseEntities = ArrayList<Course>(courses.size)
         val courseWeekEntities = mutableListOf<CourseWeek>()
 
@@ -204,8 +202,7 @@ class CourseConversionRepository(
             }
         }
 
-        if (courseEntities.isNotEmpty()) courseDao.insertAll(courseEntities)
-        if (courseWeekEntities.isNotEmpty()) courseWeekDao.insertAll(courseWeekEntities)
+        courseDao.replaceCoursesWithWeeks(tableId, courseEntities, courseWeekEntities)
     }
 
     /**

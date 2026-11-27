@@ -16,6 +16,16 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface CourseDao {
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRefreshedWeeks(weeks: List<CourseWeek>)
+
+    @Transaction
+    suspend fun replaceCoursesWithWeeks(tableId: String, courses: List<Course>, weeks: List<CourseWeek>) {
+        deleteCoursesByTableId(tableId)
+        insertAll(courses)
+        insertRefreshedWeeks(weeks)
+    }
+
 
     /**
      * 获取所有课程（用于全量备份）
