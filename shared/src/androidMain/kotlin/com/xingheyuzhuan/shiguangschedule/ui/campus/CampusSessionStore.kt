@@ -34,13 +34,15 @@ internal class CampusSessionStore(context: Context) {
         }
     }
     @Synchronized fun restore() {
-        if(!CookieManager.getInstance().getCookie("https://jw.gdou.edu.cn").isNullOrBlank())return
+        val existing=CookieManager.getInstance().getCookie("https://jw.gdou.edu.cn").orEmpty()
+            .split(';').map { it.trim().substringBefore('=') }.toSet()
+        if("JSESSIONID" in existing)return
         runCatching {
             val bytes=file.readFully()
             check(bytes.size>12)
             val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply{init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))}
             val cookie=String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8)
-            cookie.split(';').forEach { part ->
+            cookie.split(';').filter { it.trim().substringBefore('=') !in existing }.forEach { part ->
                 CookieManager.getInstance().setCookie("https://jw.gdou.edu.cn",part.trim()+"; Path=/; Secure; HttpOnly")
             }
             CookieManager.getInstance().flush()

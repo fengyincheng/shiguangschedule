@@ -13,7 +13,7 @@ interface CampusClient {
 
 internal fun JsonObject.text(key: String): String = (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
 internal fun responseObject(body: String): JsonObject {
-    if (Regex("login_slogin|authserver/login|id=[\"']?(?:fm1|loginForm)|统一身份认证").containsMatchIn(body)) throw CampusLoginRequired()
+    if (Regex("login_slogin|authserver/login|id=[\"']?(?:fm1|loginForm)|统一身份认证|请重新登录|登录超时|请先登录").containsMatchIn(body)) throw CampusLoginRequired()
     return runCatching { Json.parseToJsonElement(body).jsonObject }.getOrElse { error("教务系统返回格式异常，请稍后重试") }
 }
 

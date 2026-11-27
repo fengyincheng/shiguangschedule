@@ -14,8 +14,8 @@ import kotlinx.serialization.json.Json
 import org.koin.core.annotation.Single
 
 enum class UpdatePlatform(val title: String) {
-    GITEE("Gitee 镜像 (推荐)"),
-    GITHUB("GitHub 官方")
+    GITEE("Gitee（上游版本）"),
+    GITHUB("GitHub（广海版）")
 }
 
 sealed class UpdateStatus {
@@ -61,7 +61,7 @@ class UpdateChecker(
     private val httpClient: HttpClient = defaultHttpClient
 ) {
     companion object {
-        private const val GITHUB_REPO = "XingHeYuZhuan/shiguangschedule"
+        private const val GITHUB_REPO = "fengyincheng/shiguangschedule"
         private const val GITEE_REPO = "XingHeYuZhuan-gh/shiguangschedule"
 
         val defaultHttpClient by lazy {
@@ -83,6 +83,8 @@ class UpdateChecker(
         if (!PlatformUpdateStrategy.isUpdateSupported) {
             return@withContext UpdateStatus.NotSupported
         }
+
+        if (platform == UpdatePlatform.GITEE) return@withContext UpdateStatus.Error("广海版请通过 GitHub 获取更新")
 
         try {
             val apiUrl = when (platform) {
