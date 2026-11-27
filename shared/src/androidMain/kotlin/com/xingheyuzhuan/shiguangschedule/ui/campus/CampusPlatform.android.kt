@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -21,8 +22,9 @@ import java.net.URL
 import java.net.URLEncoder
 
 private const val SCHOOL = "https://jw.gdou.edu.cn"
-private class AndroidCampusClient : CampusClient {
+private class AndroidCampusClient(private val session: CampusSessionStore) : CampusClient {
     override suspend fun post(path: String, fields: Map<String,String>): String = withContext(Dispatchers.IO) {
+        session.restore()
         require(path.startsWith("/") && !path.startsWith("//"))
         val connection = URL(SCHOOL + path).openConnection() as HttpURLConnection
         try {
@@ -42,17 +44,25 @@ private class AndroidCampusClient : CampusClient {
             CookieManager.getInstance().flush()
             if (status == 401 || (status in 300..399 && connection.getHeaderField("Location").orEmpty().let { "login" in it || "authserver" in it })) throw CampusLoginRequired()
             check(status == 200) { "教务系统返回 HTTP $status，请稍后重试" }
-            connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }.also {
+                responseObject(it)
+                session.save()
+            }
         } finally { connection.disconnect() }
     }
 }
-@Composable actual fun rememberCampusClient(): CampusClient = remember { AndroidCampusClient() }
+@Composable actual fun rememberCampusClient(): CampusClient {
+    val context=LocalContext.current.applicationContext
+    return remember(context) { AndroidCampusClient(CampusSessionStore(context)) }
+}
 @SuppressLint("SetJavaScriptEnabled")
 @Composable actual fun CampusLogin(onClose: () -> Unit) {
+    val context=LocalContext.current.applicationContext
+    val session=remember(context){CampusSessionStore(context)}
     var web by remember { mutableStateOf<WebView?>(null) }
     var address by remember { mutableStateOf(SCHOOL) }
     var hint by remember { mutableStateOf("完成学校登录后，点击完成") }
-    DisposableEffect(Unit) { onDispose { CookieManager.getInstance().flush(); web?.destroy() } }
+    DisposableEffect(Unit) { onDispose { CookieManager.getInstance().flush(); session.save(); web?.destroy() } }
     Dialog(onDismissRequest=onClose, properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
@@ -79,6 +89,7 @@ private class AndroidCampusClient : CampusClient {
                                 CookieManager.getInstance().flush()
                             }
                         }
+                        session.restore()
                         loadUrl(SCHOOL)
                     }
                 })
