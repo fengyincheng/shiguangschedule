@@ -63,6 +63,7 @@ import com.xingheyuzhuan.shiguangschedule.Destination
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
 import shiguangschedule.shared.generated.resources.Res
+import shiguangschedule.shared.generated.resources.calendar_today_24px
 import shiguangschedule.shared.generated.resources.account_circle_24px
 import shiguangschedule.shared.generated.resources.account_circle_filled_24px
 import shiguangschedule.shared.generated.resources.nav_course_schedule
@@ -108,6 +109,7 @@ fun AdaptiveNavigationScaffold(
     val courseLabel = stringResource(Res.string.nav_course_schedule)
     val settingsLabel = stringResource(Res.string.nav_settings)
 
+    val examIcon = vectorResource(Res.drawable.calendar_today_24px)
     val todaySelectedIcon = vectorResource(Res.drawable.view_agenda_filled_24px)
     val todayUnselectedIcon = vectorResource(Res.drawable.view_agenda_24px)
     val courseSelectedIcon = vectorResource(Res.drawable.view_week_filled_24px)
@@ -116,13 +118,13 @@ fun AdaptiveNavigationScaffold(
     val settingsUnselectedIcon = vectorResource(Res.drawable.account_circle_24px)
 
     val navItems = remember(
-        todayLabel, courseLabel, settingsLabel,
+        todayLabel, courseLabel, settingsLabel, examIcon,
         todaySelectedIcon, todayUnselectedIcon,
         courseSelectedIcon, courseUnselectedIcon,
         settingsSelectedIcon, settingsUnselectedIcon
     ) {
         listOf(
-            NavItemData("考试", Destination.Exams, courseSelectedIcon, courseUnselectedIcon),
+            NavItemData("考试", Destination.Exams, examIcon, examIcon),
             NavItemData(
                 label = todayLabel,
                 destination = Destination.TodaySchedule,

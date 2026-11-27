@@ -61,15 +61,15 @@ class CampusRepository(private val client: CampusClient) {
         CampusScore(it.text("kcmc"), it.text("kch"), it.text("cj"), it.text("xf"), it.text("jd"))
     }
     suspend fun schedule(year: Int, semester: Int): List<ImportCourseJsonModel> {
-        val data = responseObject(client.post("/kbcx/xskbcx_cxXsKb.html?gnmkdm=N2151", term(year,semester)))
+        val data = responseObject(client.post("/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N2151", term(year,semester) + mapOf("kzlx" to "ck", "xsdm" to "", "kclbdm" to "")))
         val list = data["kbList"] as? JsonArray ?: error("课表接口未返回 kbList，原课表保持不变")
         // 实践课采用另一种排课结构，拒绝静默丢弃后覆盖原课表。
         check((data["sjkList"] as? JsonArray).isNullOrEmpty()) { "本学期包含实践课，请使用原教务导入入口完整导入" }
-        return list.map { parseCourse(it.jsonObject) }
+        return mergeYangjiangCourses(list.map { parseCourse(it.jsonObject) })
     }
 }
 internal fun parseWeeks(raw: String): List<Int> {
-    val cleaned = raw.replace("周", "").replace("（", "(").replace("）", ")").replace("，", ",").replace(" ", "")
+    val cleaned = raw.replace("第", "").replace("周", "").replace("（", "(").replace("）", ")").replace("，", ",").replace(" ", "")
     val result = mutableSetOf<Int>()
     cleaned.split(',').filter { it.isNotBlank() }.forEach { part ->
         val match = Regex("^(\\d+)(?:-(\\d+))?(?:\\(([单双])\\))?$").matchEntire(part)
@@ -85,7 +85,7 @@ internal fun parseWeeks(raw: String): List<Int> {
 internal fun parseCourse(row: JsonObject): ImportCourseJsonModel {
     val name = row.text("kcmc")
     val day = row.text("xqj").toIntOrNull() ?: 0
-    val sections = Regex("^(\\d+)(?:-(\\d+))?$").matchEntire(row.text("jcs")) ?: error("无法识别 $name 的节次")
+    val sections = Regex("^(\\d+)(?:-(\\d+))?$").matchEntire(row.text("jcs").replace("第", "").replace("节", "").replace(" ", "")) ?: error("无法识别 $name 的节次")
     val start = sections.groupValues[1].toInt()
     val end = sections.groupValues[2].toIntOrNull() ?: start
     check(name.isNotBlank() && day in 1..7 && start in 1..30 && end in start..30) { "课程字段异常，原课表保持不变" }
@@ -97,4 +97,26 @@ internal fun examStatus(time: String, now: String): String {
     val start="${match.groupValues[1]}T${match.groupValues[2]}"
     val end="${match.groupValues[1]}T${match.groupValues[3]}"
     return when { now < start -> "待考试"; now <= end -> "考试中"; else -> "已结束" }
+}
+
+/** 复用阳江适配的连续节次合并、周次合并与慎思楼/其他场地错峰规则。
+ * 来源：ShiGuangSchedule/shiguang_warehouse resources/GDOU/gdouyj.js，MIT。
+ */
+internal fun mergeYangjiangCourses(input: List<ImportCourseJsonModel>): List<ImportCourseJsonModel> {
+    val mergedSections=mutableListOf<ImportCourseJsonModel>()
+    input.groupBy { listOf(it.name,it.teacher,it.position,it.day.toString(),it.weeks.sorted().joinToString(",")) }.values.forEach { courses ->
+        var current: ImportCourseJsonModel?=null
+        courses.sortedBy{it.startSection}.distinctBy{it.startSection to it.endSection}.forEach { course ->
+            val previous=current
+            if(previous!=null && previous.endSection!!+1==course.startSection)current=previous.copy(endSection=course.endSection)
+            else { previous?.let{mergedSections.add(it)};current=course }
+        }
+        current?.let{mergedSections.add(it)}
+    }
+    return mergedSections.groupBy { listOf(it.name,it.teacher,it.position,it.day.toString(),it.startSection.toString(),it.endSection.toString()) }.values.map { courses ->
+        val merged=courses.first().copy(weeks=courses.flatMap{it.weeks}.distinct().sorted())
+        if(merged.position.isNotBlank() && "慎思楼" !in merged.position && merged.startSection==3 && merged.endSection==4)
+            merged.copy(isCustomTime=true,customStartTime="10:10",customEndTime="11:40")
+        else merged
+    }.sortedWith(compareBy({it.day},{it.startSection},{it.name}))
 }

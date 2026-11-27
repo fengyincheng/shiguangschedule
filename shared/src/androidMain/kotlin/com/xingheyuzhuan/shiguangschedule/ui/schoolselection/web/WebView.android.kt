@@ -199,6 +199,9 @@ actual fun PlatformWebView(
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
+                            if (view != null && url != null) {
+                                com.xingheyuzhuan.shiguangschedule.ui.campus.CampusSessionStore(view.context.applicationContext).observe(url)
+                            }
                             currentOnProgressChange(1.0f)
                             view?.evaluateJavascript("document.title") { value ->
                                 val unquoted = value?.trim('"')?.replace("\\\"", "\"")?.trim() ?: ""

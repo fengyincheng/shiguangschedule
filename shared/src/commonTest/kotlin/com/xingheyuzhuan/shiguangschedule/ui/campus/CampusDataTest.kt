@@ -36,6 +36,22 @@ class CampusDataTest {
         assertEquals("考试中",examStatus(t,"2027-01-07T09:00"))
         assertEquals("已结束",examStatus(t,"2027-01-07T11:00"))
     }
+    @Test fun reuseSchoolProxyPrefixes() {
+        assertEquals("https://wfw.gdou.edu.cn/https://jw.gdou.edu.cn",campusBase("https://wfw.gdou.edu.cn/https://jw.gdou.edu.cn/xtgl/index_initMenu.html"))
+        assertEquals("https://wfw.gdou.edu.cn/http/abc123",campusBase("https://wfw.gdou.edu.cn/http/abc123/kbcx/page.html"))
+        assertEquals("https://wfw.gdou.edu.cn",campusBase("https://wfw.gdou.edu.cn/xtgl/index_initMenu.html"))
+        assertNull(campusBase("https://wfw.gdou.edu.cn/https://authserver.gdou.edu.cn/authserver/login"))
+        assertNull(campusBase("https://evil.example/xtgl/index_initMenu.html"))
+    }
+    @Test fun yangjiangStaggeredTimesAndMerging() {
+        val raw=Json.parseToJsonElement("""{"kcmc":"数学","xm":"教师","cdmc":"博学楼A101","xqj":"2","jcs":"第3节","zcd":"第1-16周"}""").jsonObject
+        val first=parseCourse(raw)
+        val result=mergeYangjiangCourses(listOf(first,first.copy(startSection=4,endSection=4)))
+        assertEquals(1,result.size);assertTrue(result.single().isCustomTime)
+        assertEquals("10:10",result.single().customStartTime)
+        assertEquals("11:40",result.single().customEndTime)
+        assertFalse(mergeYangjiangCourses(listOf(first.copy(position="慎思楼A101",endSection=4))).single().isCustomTime)
+    }
     @Test fun parityAndRanges() {
         assertEquals(listOf(2,4,6,8,10,12,14,16,18),parseWeeks("2-18周(双)"))
         assertEquals(listOf(3,5,7,9,11,13,15,17),parseWeeks("2-18周(单)"))
