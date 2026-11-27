@@ -1,5 +1,7 @@
 name: GDOU Android APK
 on:
+  push:
+    branches: [feat/gdou-exams-refresh]
   workflow_dispatch:
 permissions:
   contents: read
