@@ -1,8 +1,41 @@
 package com.xingheyuzhuan.shiguangschedule.ui.campus
 import kotlin.test.*
+import kotlin.coroutines.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 class CampusDataTest {
+    private fun <T> immediate(block: suspend () -> T): T {
+        var result: Result<T>? = null
+        block.startCoroutine(object: Continuation<T> {
+            override val context = EmptyCoroutineContext
+            override fun resumeWith(value: Result<T>) { result=value }
+        })
+        return result!!.getOrThrow()
+    }
+    @Test fun paginationAndTermMapping() {
+        val pages=mutableListOf<String>()
+        val repo=CampusRepository(object: CampusClient {
+            override suspend fun post(path: String, fields: Map<String,String>): String {
+                assertEquals("12",fields["xqm"])
+                val n=fields.getValue("queryModel.currentPage");pages.add(n)
+                return """{"items":[{"kcmc":"课程$n"}],"total":2,"records":2}"""
+            }
+        })
+        assertEquals(2,immediate{repo.exams(2026,2)}.size)
+        assertEquals(listOf("1","2"),pages)
+    }
+    @Test fun rejectsTruncatedPagination() {
+        val repo=CampusRepository(object: CampusClient {
+            override suspend fun post(path: String, fields: Map<String,String>) = """{"items":[],"records":3,"total":1}"""
+        })
+        assertFails{immediate{repo.exams(2026,1)}}
+    }
+    @Test fun statusUsesExamEnd() {
+        val t="2027-01-07(08:30-10:30)"
+        assertEquals("待考试",examStatus(t,"2027-01-06T12:00"))
+        assertEquals("考试中",examStatus(t,"2027-01-07T09:00"))
+        assertEquals("已结束",examStatus(t,"2027-01-07T11:00"))
+    }
     @Test fun parityAndRanges() {
         assertEquals(listOf(2,4,6,8,10,12,14,16,18),parseWeeks("2-18周(双)"))
         assertEquals(listOf(3,5,7,9,11,13,15,17),parseWeeks("2-18周(单)"))

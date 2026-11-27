@@ -91,3 +91,10 @@ internal fun parseCourse(row: JsonObject): ImportCourseJsonModel {
     check(name.isNotBlank() && day in 1..7 && start in 1..30 && end in start..30) { "课程字段异常，原课表保持不变" }
     return ImportCourseJsonModel(name, row.text("xm"), row.text("cdmc"), day, start, end, parseWeeks(row.text("zcd")), credit = row.text("xf").toFloatOrNull())
 }
+
+internal fun examStatus(time: String, now: String): String {
+    val match = Regex("(\\d{4}-\\d{2}-\\d{2}).*?(\\d{2}:\\d{2})\\s*[-~～至]\\s*(\\d{2}:\\d{2})").find(time) ?: return "时间待确认"
+    val start="${match.groupValues[1]}T${match.groupValues[2]}"
+    val end="${match.groupValues[1]}T${match.groupValues[3]}"
+    return when { now < start -> "待考试"; now <= end -> "考试中"; else -> "已结束" }
+}

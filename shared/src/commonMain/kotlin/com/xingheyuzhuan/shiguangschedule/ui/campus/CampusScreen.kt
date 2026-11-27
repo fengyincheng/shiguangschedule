@@ -83,6 +83,7 @@ private fun errorMessage(error: Exception): String = when(error) {
                     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                         Text(exam.course,style=MaterialTheme.typography.titleMedium)
                         Text(exam.time.ifBlank{"时间待公布"})
+                        Text(examStatus(exam.time, Clock.System.now().toLocalDateTime(TimeZone.of("Asia/Shanghai")).toString()), color=MaterialTheme.colorScheme.primary, style=MaterialTheme.typography.labelMedium)
                         Text("${exam.location.ifBlank{"考场待公布"}} · ${exam.campus}")
                         Text("座位：${exam.seat.ifBlank{"待公布"}}",style=MaterialTheme.typography.bodySmall)
                         val related=scores.filter{ if(exam.courseId.isNotBlank())it.courseId==exam.courseId else it.course==exam.course }
